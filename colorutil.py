@@ -23,7 +23,7 @@ def ImageColor2Idx(rgb, maxIdx):
     idx //= (rgbRange // maxIdx)
     return idx
 
-def GetDistinctColors(numClass):
+def DistinctColors(numClass):
     colors = np.zeros([numClass, 3], np.uint8)
     for i in range(numClass):
         colors[i] = Idx2Color(i + 1, numClass + 1)

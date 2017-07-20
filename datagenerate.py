@@ -7,49 +7,27 @@ import time
 import cv2 as cv
 
 def GenSegmentation(modelName, segIdx, patches):
-    sampleMeshPath = conf.GetMeshPath(modelName, 0)
+    sampleMeshPath = conf.MeshPath(modelName, 0)
     vertices, faces = LoadMesh(sampleMeshPath)
     centers, vertexAs, faceAs = FurthestPointSample(vertices, faces, patches, 10)
 
     datas = [centers, vertexAs, faceAs]
     types = ['center', 'vertexAs', 'faceAs']
     for i in range(3):
-        segPath = conf.GetSegmentationPath(modelName, segIdx, types[i])
+        segPath = conf.SegmentationPath(modelName, segIdx, types[i])
         np.save(segPath, datas[i])
 
-def GenVertexColor(modelName):
-    sampleMeshPath = conf.GetMeshPath(modelName, 0)
-    vertices, faces = LoadMesh(sampleMeshPath)
-
-    vertexColor = GetDistinctColors(vertices.shape[0])
-    vertexColorPath = conf.GetVertexColorPath(modelName)
-    np.save(vertexColorPath, vertexColor)
-
-def GenLabels(modelName, meshIdx, vertexColor):
-    meshPath = conf.GetMeshPath(modelName, meshIdx)
-    vertices, faces = LoadMesh(meshPath)
-    RegularizeMesh(modelName, vertices)
-
-    sampleMeshPath = conf.GetMeshPath(modelName, 0)
-    vertices, faces = LoadMesh(sampleMeshPath)
-
-    #prepare vertex colors
-    vcPath = conf.GetVertexColorPath(modelName)
-    vertexColor = np.load(vcPath)
-
 def GenNewLabel(modelRange, segRange, swiRange, disRange, rotRange, depthAndVertex=True):
-    zNear = 1.0
-    zFar = 3.5
-    b = zFar * zNear / (zNear - zFar)
-    a = -b / zNear
+    b = ZFAR * ZNEAR / (ZNEAR - ZFAR)
+    a = -b / ZNEAR
 
     # preparation
     if depthAndVertex:
         segRange = [-1] + segRange
-    segColorMap = GetDistinctColors(500)
+    segColorMap = GetDistinctColors(NUMPATCH)
 
-    renderer = GLRenderer(b'GenNewLabel', 512, 512, toTexture=True)
-    proj = glm.perspective(glm.radians(70), 1.0, zNear, zFar)
+    renderer = GLRenderer(b'GenNewLabel', FULLSIZE, FULLSIZE, toTexture=True)
+    proj = glm.perspective(glm.radians(70), 1.0, ZNEAR, ZFAR)
     for modelName in modelRange:
         vertexColor = None
         for meshIdx in range(conf.meshCnt[modelName]):
@@ -77,7 +55,7 @@ def GenNewLabel(modelRange, segRange, swiRange, disRange, rotRange, depthAndVert
                     for dis in disRange:
                         for rot in rotRange:
                             model = glm.identity()
-                            model = glm.rotate(model, glm.radians(swi - 35), glm.vec3(0, 1, 0))
+                            model = glm.rotate(model, glm.radians(swi - MAXSWI / 2), glm.vec3(0, 1, 0))
                             model = glm.translate(model, glm.vec3(0, 0, -dis / 100.0))
                             model = glm.rotate(model, glm.radians(rot), glm.vec3(0, 1, 0))
                             mvp = proj.dot(model)
@@ -86,7 +64,7 @@ def GenNewLabel(modelRange, segRange, swiRange, disRange, rotRange, depthAndVert
                             if segIdx == -1:
                                 rgb, z = renderer.draw(vertexBuffer, vertexColorBuffer, mvp.T)
                                 # save depth view
-                                depth = ((zFar - b / (z - a)) / (zFar - zNear) * 255).astype(np.uint8)
+                                depth = ((ZFAR - b / (z - a)) / (ZFAR - ZNEAR) * 255).astype(np.uint8)
                                 dvPath = conf.GetDepthViewPath(modelName, meshIdx, viewName)
                                 cv.imwrite(dvPath, depth)
                                 # save vertex view
@@ -96,14 +74,12 @@ def GenNewLabel(modelRange, segRange, swiRange, disRange, rotRange, depthAndVert
                             else:
                                 rgb, depth = renderer.draw(vertexBuffer, segColorBuffer, mvp.T)
                                 # save segmentation view
-                                seg = ImageColor2Idx(rgb, 500 + 1)
+                                seg = ImageColor2Idx(rgb, NUMPATCH + 1)
                                 svPath = conf.GetSegmentationViewPath(modelName, meshIdx, segIdx, viewName)
                                 cv.imwrite(svPath, seg)
 
 if __name__ == '__main__':
     pass
-    #GenSegmentation('SCAPE', 0, 500)
-    #GenVertexColor('SCAPE')
     modelRange = ['SCAPE']
     segRange = [i for i in range(1)]
     swiRange = [35]

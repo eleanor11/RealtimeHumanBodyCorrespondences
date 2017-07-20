@@ -1,6 +1,18 @@
 import os
 import time
 
+MODEFAST = 'FAST'
+MODEFULL = 'FULL'
+
+ZNEAR = 1.0
+ZFAR = 3.5
+MAXSWI = 70
+NUMPATCH = 500
+FULLSIZE = 512
+FASTSIZE = 225
+
+CVINTOFFSET = 2147483648
+
 def CreateDirs(path):
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -22,14 +34,14 @@ class Config:
 
     def InitDirectories(self):
         for modelName in self.models:
-            CreateDirs(self.GetMeshPath(modelName, 0))
-            CreateDirs(self.GetSegmentationPath(modelName, 0))
+            CreateDirs(self.MeshPath(modelName, 0))
+            CreateDirs(self.SegmentationPath(modelName, 0))
             for modelName in self.models:
                 for meshIdx in range(self.meshCnt[modelName]):
-                    CreateDirs(self.GetDepthViewPath(modelName, meshIdx, 'test'))
-                    CreateDirs(self.GetVertexViewPath(modelName, meshIdx, 'test'))
+                    CreateDirs(self.DepthViewPath(modelName, meshIdx, 'test'))
+                    CreateDirs(self.VertexViewPath(modelName, meshIdx, 'test'))
                     for segIdx in range(1):
-                        CreateDirs(self.GetSegmentationViewPath(modelName, meshIdx, segIdx, 'test'))
+                        CreateDirs(self.SegmentationViewPath(modelName, meshIdx, segIdx, 'test'))
 
     def AddModel(self, modelName, meshFormat, meshCnt):
         self.models.append(modelName)
@@ -37,28 +49,25 @@ class Config:
         self.meshFormat[modelName] = meshFormat
         self.meshCnt[modelName] = meshCnt
 
-    def GetMeshPath(self, modelName, meshIdx):
+    def MeshPath(self, modelName, meshIdx):
         return os.path.join(self.modelDir[modelName], 'mesh', self.meshFormat[modelName].format(meshIdx))
 
-    def GetSegmentationPath(self, modelName, segIdx, type='faceAs'):
+    def SegmentationPath(self, modelName, segIdx, type='faceAs'):
         return os.path.join(self.modelDir[modelName], 'segmentation', '{:03d}-{}.npy'.format(segIdx, type))
 
-    def GetVertexColorPath(self, modelName):
-        return os.path.join(self.modelDir[modelName], 'vertexcolor.npy')
-
-    def GetVisualColorPath(self, modelName):
+    def VisualColorPath(self, modelName):
         return os.path.join(self.modelDir[modelName], 'visualcolor.npy')
 
-    def GetViewName(self, swi, dis, rot):
+    def ViewName(self, swi, dis, rot):
         return 's{:03d}_d{:03d}_r{:03d}'.format(swi, dis, rot)
 
-    def GetDepthViewPath(self, modelName, meshIdx, viewName):
+    def DepthViewPath(self, modelName, meshIdx, viewName):
         return os.path.join(self.modelDir[modelName], 'view', 'mesh{:03d}'.format(meshIdx), 'depth', viewName + '.png')
 
-    def GetVertexViewPath(self, modelName, meshIdx, viewName):
+    def VertexViewPath(self, modelName, meshIdx, viewName):
         return os.path.join(self.modelDir[modelName], 'view', 'mesh{:03d}'.format(meshIdx), 'vertex', viewName + '.exr')
 
-    def GetSegmentationViewPath(self, modelName, meshIdx, segIdx, viewName):
+    def SegmentationViewPath(self, modelName, meshIdx, segIdx, viewName):
         return os.path.join(self.modelDir[modelName], 'view', 'mesh{:03d}'.format(meshIdx), 'segmentation{:03d}'.format(segIdx), viewName + '.exr')
 
 
