@@ -1,6 +1,7 @@
 from config import *
 import cv2 as cv
 import numpy as np
+from net import *
 
 def RandomBatch(batchSize, modelRange, segRange, swiRange, disRange, rotRange, mode='FULL'):
     models = np.random.choice(modelRange, batchSize)
@@ -22,7 +23,6 @@ def RandomBatch(batchSize, modelRange, segRange, swiRange, disRange, rotRange, m
             depth[HALFSIZE:HALFSIZE + FULLSIZE, HALFSIZE:HALFSIZE + FULLSIZE] = cv.imread(dvPath, -1)
             x, y = -1, -1
             while depth[x + HALFSIZE, y + HALFSIZE] == 0: x, y = np.random.randint(0, FULLSIZE), np.random.randint(0, FULLSIZE)
-            print(x, y)
             batchDepth[i, :, :, 0] = depth[x: x + FASTSIZE, y: y + FASTSIZE]
             # load label
             svPath = conf.SegmentationViewPath(models[i], meshes[i], segs[i], viewName)
@@ -44,10 +44,32 @@ def RandomBatch(batchSize, modelRange, segRange, swiRange, disRange, rotRange, m
 
     return batchDepth, batchLabel
 
-if __name__ == '__main__':
+def Train():
     modelRange = ['SCAPE']
     segRange = [0]
     swiRange = [35]
     disRange = [250]
     rotRange = [i for i in range(0, 360, 15)]
-    mode = MODEFAST
+    mode = MODEFULL
+    batchSize = 1
+
+    with tf.Graph().as_default():
+        model = DHBC()
+        model.Inference(mode)
+        model.Classify()
+
+        # prepare loss
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=model.label, logits=tf.nn.softmax(model.predict)))
+        optimizer = tf.train.AdamOptimizer(1e-7).minimize(loss)
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            while 1:
+                batchDepth, batchLabel = RandomBatch(batchSize, modelRange, segRange, swiRange, disRange, rotRange, mode)
+                curLoss, _ = sess.run([loss, optimizer], feed_dict={model.depth: batchDepth, model.label: batchLabel})
+                print(curLoss)
+
+
+if __name__ == '__main__':
+    np.random.seed()
+    Train()

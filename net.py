@@ -1,12 +1,14 @@
+from config import *
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 class DHBC:
     def Inference(self, mode):
-        if mode == 'FAST':
+        if mode == MODEFAST:
             padding = 'VALID'
-            self.depth = tf.placeholder(tf.float32, [None, 226, 226, 1])
-            self.conv1 = slim.conv2d(depth, 96, [11, 11], 4, padding, scope='conv1')
+            self.depth = tf.placeholder(tf.float32, [None, FASTSIZE, FASTSIZE, 1])
+            self.label = tf.placeholder(tf.float32, [None, 1, 1, 500])
+            self.conv1 = slim.conv2d(self.depth, 96, [11, 11], 4, padding, scope='conv1')
             self.pool1 = slim.max_pool2d(self.conv1, [3, 3], 2, scope='pool1')
             self.conv2 = slim.conv2d(self.pool1, 256, [5, 5], 1, padding, scope='conv2')
             self.pool2 = slim.max_pool2d(self.conv2, [3, 3], 2, scope='pool2')
@@ -20,8 +22,9 @@ class DHBC:
             self.feature = self.conv8
         else:
             padding = 'SAME'
-            self.depth = tf.placeholder(tf.float32, [None, 512, 512, 1])
-            self.conv1 = slim.conv2d(depth, 96, [11, 11], 4, padding, scope='conv1')
+            self.depth = tf.placeholder(tf.float32, [None, FULLSIZE, FULLSIZE, 1])
+            self.label = tf.placeholder(tf.float32, [None, FULLSIZE, FULLSIZE, 500])
+            self.conv1 = slim.conv2d(self.depth, 96, [11, 11], 4, padding, scope='conv1')
             self.conv2 = slim.conv2d(self.conv1, 256, [5, 5], 1, padding, scope='conv2')
             self.conv3 = slim.conv2d(self.conv2, 384, [3, 3], 1, padding, scope='conv3')
             self.conv4 = slim.conv2d(self.conv3, 384, [3, 3], 1, padding, scope='conv4')
@@ -31,4 +34,5 @@ class DHBC:
             self.conv8 = slim.conv2d_transpose(self.fc7, 16, [3, 3], 4, padding, scope='conv8')
             self.feature = self.conv8
 
-        return self.depth, self.feature
+    def Classify(self):
+        self.predict = slim.conv2d_transpose(self.feature, NUMPATCH, [1, 1], scope='predict')
