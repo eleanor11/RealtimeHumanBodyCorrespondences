@@ -6,83 +6,82 @@ from gl.glrender import *
 import time
 import cv2 as cv
 
-def GenSegmentation(modelName, segIdx, patches):
-    sampleMeshPath = conf.MeshPath(modelName, 0)
-    vertices, faces = LoadMesh(sampleMeshPath)
-    centers, vertexAs, faceAs = FurthestPointSample(vertices, faces, patches, 10)
+def gen_segmentation(model, seg_idx, classes):
+    sample_mesh_path = conf.mesh_path(model, 0)
+    vertices, faces = load_mesh(sample_mesh_path)
+    centers, vertex_as, face_as = furthest_point_sample(vertices, faces, classes, 10)
 
-    datas = [centers, vertexAs, faceAs]
-    types = ['center', 'vertexAs', 'faceAs']
+    datas = [centers, vertex_as, face_as]
+    types = ['center', 'vertex_as', 'face_as']
     for i in range(3):
-        segPath = conf.SegmentationPath(modelName, segIdx, types[i])
-        np.save(segPath, datas[i])
+        seg_path = conf.segmentation_path(model, seg_idx, types[i])
+        np.save(seg_path, datas[i])
 
-def GenNewLabel(modelRange, segRange, swiRange, disRange, rotRange, depthAndVertex=True):
-    b = ZFAR * ZNEAR / (ZNEAR - ZFAR)
-    a = -b / ZNEAR
+def gen_label(model_range, seg_range, swi_range, dis_range, rot_range, depth_and_vertex=True):
+    b = conf.zfar * conf.znear / (conf.znear - conf.zfar)
+    a = -b / conf.znear
 
     # preparation
-    if depthAndVertex:
-        segRange = [-1] + segRange
-    segColorMap = GetDistinctColors(NUMPATCH)
+    if depth_and_vertex:
+        seg_range = [-1] + seg_range
+    seg_color_map = distinct_colors(conf.num_classes)
 
-    renderer = GLRenderer(b'GenNewLabel', FULLSIZE, FULLSIZE, toTexture=True)
-    proj = glm.perspective(glm.radians(70), 1.0, ZNEAR, ZFAR)
-    for modelName in modelRange:
-        vertexColor = None
-        for meshIdx in range(conf.meshCnt[modelName]):
-            print('Generate label for model {} Mesh {}...'.format(modelName, meshIdx))
-            meshPath = conf.GetMeshPath(modelName, meshIdx)
-            vertices, faces = LoadMesh(meshPath)
-            RegularizeMesh(vertices, modelName)
+    renderer = GLRenderer(b'gen_label', conf.width, conf.height, toTexture=True)
+    proj = glm.perspective(glm.radians(70), 1.0, conf.znear, conf.zfar)
+    for model in model_range:
+        vertex_color = None
+        for mesh_idx in range(conf.num_meshes[model]):
+            print('Generate label for model {} Mesh {}...'.format(model, mesh_idx))
+            mesh_path = conf.mesh_path(model, mesh_idx)
+            vertices, faces = load_mesh(mesh_path)
+            regularize_mesh(vertices, model)
             faces = faces.reshape([faces.shape[0] * 3])
-            vertexBuffer = vertices[faces]
+            vertex_buffer = vertices[faces]
 
-            if vertexColor is None:
-                vertexColor = GetDistinctColors(vertices.shape[0])
-            vertexColorBuffer = (vertexColor[faces] / 255.0).astype(np.float32)
+            if vertex_color is None:
+                vertex_color = distinct_colors(vertices.shape[0])
+            vertex_color_buffer = (vertex_color[faces] / 255.0).astype(np.float32)
 
-            for segIdx in segRange + [-1]:
+            for seg_idx in seg_range + [-1]:
                 # prepare segmentation color
-                if segIdx != -1:
-                    segPath = conf.GetSegmentationPath(modelName, segIdx)
-                    segmentation = np.load(segPath)
-                    segColorBuffer = np.zeros([faces.shape[0], 3], np.float32)
-                    faceColors = segColorMap[segmentation] / 255.0
-                    segColorBuffer[2::3,:] = segColorBuffer[1::3,:] = segColorBuffer[0::3,:] = faceColors
+                if seg_idx != -1:
+                    seg_path = conf.segmentation_path(model, seg_idx)
+                    segmentation = np.load(seg_path)
+                    seg_color_buffer = np.zeros([faces.shape[0], 3], np.float32)
+                    face_colors = seg_color_map[segmentation] / 255.0
+                    seg_color_buffer[2::3,:] = seg_color_buffer[1::3,:] = seg_color_buffer[0::3,:] = face_colors
 
-                for swi in swiRange:
-                    for dis in disRange:
-                        for rot in rotRange:
-                            model = glm.identity()
-                            model = glm.rotate(model, glm.radians(swi - MAXSWI / 2), glm.vec3(0, 1, 0))
-                            model = glm.translate(model, glm.vec3(0, 0, -dis / 100.0))
-                            model = glm.rotate(model, glm.radians(rot), glm.vec3(0, 1, 0))
-                            mvp = proj.dot(model)
+                for swi in swi_range:
+                    for dis in dis_range:
+                        for rot in rot_range:
+                            mod = glm.identity()
+                            mod = glm.rotate(mod, glm.radians(swi - conf.max_swi / 2), glm.vec3(0, 1, 0))
+                            mod = glm.translate(mod, glm.vec3(0, 0, -dis / 100.0))
+                            mod = glm.rotate(mod, glm.radians(rot), glm.vec3(0, 1, 0))
+                            mvp = proj.dot(mod)
 
-                            viewName = conf.GetViewName(swi, dis, rot)
-                            if segIdx == -1:
-                                rgb, z = renderer.draw(vertexBuffer, vertexColorBuffer, mvp.T)
+                            view_name = conf.view_name(swi, dis, rot)
+                            if seg_idx == -1:
+                                rgb, z = renderer.draw(vertex_buffer, vertex_color_buffer, mvp.T)
                                 # save depth view
-                                depth = ((ZFAR - b / (z - a)) / (ZFAR - ZNEAR) * 255).astype(np.uint8)
-                                dvPath = conf.GetDepthViewPath(modelName, meshIdx, viewName)
-                                cv.imwrite(dvPath, depth)
+                                depth = ((conf.zfar - b / (z - a)) / (conf.zfar - conf.znear) * 255).astype(np.uint8)
+                                depth_view_path = conf.depth_view_path(model, mesh_idx, view_name)
+                                cv.imwrite(depth_view_path, depth)
                                 # save vertex view
-                                vertexIdx = ImageColor2Idx(rgb, vertices.shape[0] + 1)
-                                vvPath = conf.GetVertexViewPath(modelName, meshIdx, viewName)
-                                cv.imwrite(vvPath, vertexIdx)
+                                vertex_view_path = conf.vertex_view_path(model, mesh_idx, view_name)
+                                cv.imwrite(vertex_view_path, rgb)
                             else:
-                                rgb, depth = renderer.draw(vertexBuffer, segColorBuffer, mvp.T)
+                                rgb, depth = renderer.draw(vertex_buffer, seg_color_buffer, mvp.T)
                                 # save segmentation view
-                                seg = ImageColor2Idx(rgb, NUMPATCH + 1)
-                                svPath = conf.GetSegmentationViewPath(modelName, meshIdx, segIdx, viewName)
-                                cv.imwrite(svPath, seg)
+                                seg_view_path = conf.segmentation_view_path(model, mesh_idx, seg_idx, view_name)
+                                cv.imwrite(seg_view_path, rgb)
 
 if __name__ == '__main__':
     pass
-    modelRange = ['SCAPE']
-    segRange = [i for i in range(1)]
-    swiRange = [35]
-    disRange = [250]
-    rotRange = [i for i in range(0, 360, 15)]
-    GenNewLabel(modelRange, segRange, swiRange, disRange, rotRange, True)
+    #gen_segmentation('SCAPE', 0, conf.num_classes)
+    model_range = ['SCAPE']
+    seg_range = [i for i in range(1)]
+    swi_range = [35]
+    dis_range = [250]
+    rot_range = [i for i in range(0, 360, 15)]
+    gen_label(model_range, seg_range, swi_range, dis_range, rot_range, True)
