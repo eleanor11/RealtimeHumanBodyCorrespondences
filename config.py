@@ -21,13 +21,15 @@ class Config:
         self.num_meshes = {}
 
         # constant
-        self.cv_int_offset = 2147483648
+        self.tmp_file_path = 'file_list.txt'
         self.width = 512
         self.height = 512
         self.num_classes = 500
         self.znear = 1.0
         self.zfar = 3.5
         self.max_swi = 70
+        self.train_model_range = ['SCAPE', 'MITcrane', 'MITjumping', 'MITmarch1', 'MITsquat1', 'MITswing', 'MITsamba']
+        self.train_seg_range = [i for i in range(5)]
 
     def init_directories(self):
         for model in self.models:
@@ -36,8 +38,9 @@ class Config:
             for model in self.models:
                 for mesh_idx in range(self.num_meshes[model]):
                     create_dirs(self.depth_view_path(model, mesh_idx, 'test'))
+                    create_dirs(self.dist_view_path(model, mesh_idx, 'test'))
                     create_dirs(self.vertex_view_path(model, mesh_idx, 'test'))
-                    for seg_idx in range(1):
+                    for seg_idx in range(5):
                         create_dirs(self.segmentation_view_path(model, mesh_idx, seg_idx, 'test'))
 
     def add_model(self, model, mesh_format, num_meshes):
@@ -58,13 +61,27 @@ class Config:
     def depth_view_path(self, model, mesh_idx, view_name):
         return os.path.join(self.model_dir[model], 'view', 'mesh{:03d}'.format(mesh_idx), 'depth', view_name + '.png')
 
+    def dist_view_path(self, model, mesh_idx, view_name):
+        return os.path.join(self.model_dir[model], 'view', 'mesh{:03d}'.format(mesh_idx), 'dist', view_name + '.png')
+
     def vertex_view_path(self, model, mesh_idx, view_name):
         return os.path.join(self.model_dir[model], 'view', 'mesh{:03d}'.format(mesh_idx), 'vertex', view_name + '.png')
 
     def segmentation_view_path(self, model, mesh_idx, seg_idx, view_name):
         return os.path.join(self.model_dir[model], 'view', 'mesh{:03d}'.format(mesh_idx), 'segmentation{:03d}'.format(seg_idx), view_name + '.png')
 
+    def model_feature_path(self, model, name):
+        return os.path.join(self.model_dir[model], 'feature', '{}.npy'.format(name))
 
-conf = Config('E:\\RealtimeHumanBodyCorrespondences')
+    def model_color_path(self, model):
+        return os.path.join(self.model_dir[model], 'model_color.txt')
+
+conf = Config('D:\\RealtimeHumanBodyCorrespondences')
 conf.add_model('SCAPE', 'mesh{:03d}.ply', 71)
+conf.add_model('MITcrane', 'mesh_{:04d}.obj', 17)
+conf.add_model('MITjumping', 'mesh_{:04d}.obj', 25)
+conf.add_model('MITmarch1', 'mesh_{:04d}.obj', 16)
+conf.add_model('MITsquat1', 'mesh_{:04d}.obj', 13)
+#conf.add_model('MITswing', 'mesh_{:04d}.ply', 71)
+#conf.add_model('MITsamba', 'mesh_{:04d}.ply', 71)
 conf.init_directories()

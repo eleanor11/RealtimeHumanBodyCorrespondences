@@ -26,9 +26,30 @@ def load_ply_mesh(mesh_path):
 
     return vertices, faces
 
+def load_obj_mesh(mesh_path):
+    vertex_data = []
+    face_data = []
+    for line in open(mesh_path, "r"):
+        if line.startswith('#'):
+            continue
+        values = line.split()
+        if not values:
+            continue
+        if values[0] == 'v':
+            v = list(map(float, values[1:4]))
+            vertex_data.append(v)
+        elif values[0] == 'f':
+            f = list(map(int, values[1:4]))
+            face_data.append(f)
+    vertices = np.array(vertex_data)
+    faces = np.array(face_data)
+    return vertices, faces
+
 def load_mesh(mesh_path):
     if mesh_path.endswith('.ply'):
         vertices, faces = load_ply_mesh(mesh_path)
+    elif mesh_path.endswith('.obj'):
+        vertices, faces = load_obj_mesh(mesh_path)
     if np.min(faces) == 1:
         faces -= 1
     return vertices, faces
@@ -43,7 +64,9 @@ def regularize_mesh(vertices, model):
         m = glm.rotate(m, glm.radians(270), glm.vec3(1, 0, 0))
         tmp = glm.transform(tmp, m)
     elif model.startswith('MIT'):
-        pass
+        m = glm.identity()
+        #m = glm.rotate(m, glm.radians(90), glm.vec3(0, 1, 0))
+        tmp = glm.transform(tmp, m)
 
     vertices[:,:] = tmp[:,:3]
 

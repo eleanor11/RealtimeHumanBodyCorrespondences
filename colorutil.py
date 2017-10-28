@@ -7,10 +7,10 @@ def idx2color(idx):
     b = idx % 256
     return np.array([r, g, b], dtype=np.uint8)
 
-def image_color2idx(color_img, gbr=False):
+def image_color2idx(color_img, rgb=False):
     color_img = color_img.astype(np.int32)
     idx = np.zeros([color_img.shape[0], color_img.shape[1]], np.int32)
-    if gbr:
+    if rgb:
         idx[:,:] += color_img[:,:,2] * 256 * 256
         idx[:,:] += color_img[:,:,1] * 256
         idx[:,:] += color_img[:,:,0]
@@ -19,6 +19,13 @@ def image_color2idx(color_img, gbr=False):
         idx[:,:] += color_img[:,:,1] * 256
         idx[:,:] += color_img[:,:,2]
     return idx
+
+def image_int2color(int_img, rgb=False):
+    color_img = np.zeros([int_img.shape[0], int_img.shape[1], 3], np.uint8)
+    color_img[:,:,0] = int_img // (256 * 256) % 256
+    color_img[:,:,1] = int_img // 256 % 256
+    color_img[:,:,2] = int_img % 256
+    return color_img
 
 def distinct_colors(num_classes):
     colors = np.zeros([num_classes, 3], np.uint8)
